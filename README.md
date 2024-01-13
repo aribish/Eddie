@@ -10,3 +10,18 @@ This project is very much a work in progress. Below is a list of major features 
 # Build
 Run `make` to produce an executable named `eddie`. A file path is required as the only argument
 when running this program.
+
+# Commands
+### COMMAND MODE
+`r` - Enter REPLACE mode
+
+`i` - Enter INSERT mode
+
+`w` - Write buffer
+
+`q` - Quit
+
+Arrow keys to move
+
+### INSERT/REPLACE MODE
+`Esc` - Enter COMMAND mode
