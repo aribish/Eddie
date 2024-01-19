@@ -26,8 +26,6 @@ typedef struct {
 	int bufferChunks; // the size of the buffer in chunks
 	
 	char* insertBuffer; // shit after the cursor
-	
-	int viewTopLine;
 } EDITOR;
 
 EDITOR* initEditor();
@@ -38,9 +36,6 @@ void handleInput(EDITOR* editor, WINDOW* win, char input); // RESETS ALL FLAGS
 
 void loadBuffer(EDITOR* editor, char* bufferPath);
 void writeBuffer(EDITOR* editor);
-
-int getCursorX(EDITOR* editor);
-int getCursorY(EDITOR* editor);
 
 int getBufferLines(EDITOR* editor);
 

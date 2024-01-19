@@ -48,16 +48,16 @@ int main(int argc, char** argv) {
 				appendStatusBarLeft(ui, "[ERROR] ");
 		}
 
-		sprintf(barFormatBuffer, "| Cursor: (%d, %d/%d) | i: %d/%d | $ [0x%02x (%d)] | Chunks: %d | ", 
-				getCursorX(editor), getCursorY(editor), getBufferLines(editor) - 1,
-				editor->bufferIndex, editor->bufferLen, input, input, editor->bufferChunks);
+		sprintf(barFormatBuffer, "| i: %d/%d | $ [0x%02x (%d)] | Chunks: %d | ", 
+				editor->bufferIndex, editor->bufferLen,
+				input, input,
+				editor->bufferChunks);
 		appendStatusBarRight(ui, barFormatBuffer);
 
-		printBuffer(ui, editor);
 		printTitleBar(ui);
 		printStatusBar(ui);
-		move(getCursorY(editor) - editor->viewTopLine + 1, getCursorX(editor));
-
+		printBuffer(ui, editor);
+		
 		input = getch();
 		handleInput(editor, ui->win, input);
 	}

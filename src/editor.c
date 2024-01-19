@@ -45,7 +45,7 @@ void checkBufferFull(EDITOR* editor) {
 }
 
 // local function
-void handleCommandInput(EDITOR* editor, WINDOW* win, char input) {
+void handleCommandInput(EDITOR* editor, char input) {
 	if(input == 'q')
 		editor->flags |= JUST_QUIT;
 	else if(input == 'r')
@@ -77,8 +77,16 @@ void handleCommandInput(EDITOR* editor, WINDOW* win, char input) {
 	else if(input == 67 && editor->bufferIndex < editor->bufferLen) { // right
 		editor->bufferIndex++;
 	}
-	else if(input == 65 && getCursorY(editor) > 0) { // up
-		int x = getCursorX(editor);
+	else if(input == 65) { // up
+		// make sure cursor is not already on the first line + get x
+		int x = 0;
+		while(editor->buffer[editor->bufferIndex - 1 - x] != '\n' && editor->bufferIndex - 1 - x > 0) {
+			x++;
+		}
+
+		if(editor->bufferIndex == x)
+			return;
+
 		bool onPrevLine = false;
 		int prevLineStart = 0;
 		int prevLineLen = 0;
@@ -102,13 +110,24 @@ void handleCommandInput(EDITOR* editor, WINDOW* win, char input) {
 		}
 
 		editor->bufferIndex = prevLineStart + x;
-
-		// does the view need to move up?
 	}
-	else if(input == 66 && getCursorY(editor) < getBufferLines(editor) - 1) { // down
-		int x = getCursorX(editor);
+	else if(input == 66) { // down
+		// make sure cursor is not already at the bottom line
+		for(int i = editor->bufferIndex + 1; i <= editor->bufferLen; i++) {
+			if(i == editor->bufferLen)
+				return;
+			else if(editor->buffer[i] == '\n')
+				break;
+		}
+
+		// get x
+		int x = 0;
+		while(editor->buffer[editor->bufferIndex - 1 - x] != '\n' && editor->bufferIndex - 1 - x > 0) {
+			x++;
+		}
+
 		bool onNextLine = false;
-		int nextLineStart;
+		int nextLineStart = 0;
 		int nextLineLen = 0;
 
 		for(int i = editor->bufferIndex; i < editor->bufferLen; i++) {
@@ -117,20 +136,17 @@ void handleCommandInput(EDITOR* editor, WINDOW* win, char input) {
 			}
 			if(editor->buffer[i] == '\n') {
 				if(onNextLine) {
+					nextLineLen++;
 					break;
 				}
 				else {
 					onNextLine = true;
-					nextLineStart = i;
+					nextLineStart = i + 1;
 				}
 			}
 		}
 
-		if(nextLineLen < x) {
-			x = nextLineLen - 1;
-		}
-
-		editor->bufferIndex = nextLineStart + x + 1;
+		editor->bufferIndex = nextLineStart + x;
 	}
 }
 
@@ -176,27 +192,12 @@ void handleInsertReplaceInput(EDITOR* editor, char input) {
 }
 
 void handleInput(EDITOR* editor, WINDOW* win, char input) {
-	static int lastY = 0;
 	editor->flags = 0;
 
 	if(editor->mode == COMMAND)
-		handleCommandInput(editor, win, input);
+		handleCommandInput(editor, input);
 	else if(editor->mode == REPLACE || editor->mode == INSERT)
 		handleInsertReplaceInput(editor, input);
-
-	if(getCursorY(editor) != lastY) {
-		int width, height;
-		getmaxyx(win, height, width);
-
-		if(getCursorY(editor) >= editor->viewTopLine + height - 2) {
-			editor->viewTopLine++;
-		}
-		else if(getCursorY(editor) < editor->viewTopLine && getCursorY(editor) < getBufferLines(editor)) {
-				editor->viewTopLine--;
-		}
-	}
-
-	lastY = getCursorY(editor);
 }
 
 void loadBuffer(EDITOR* editor, char* bufferPath) {
@@ -222,34 +223,11 @@ void loadBuffer(EDITOR* editor, char* bufferPath) {
 	}
 
 	editor->bufferIndex = 0;
-	editor->viewTopLine = 0;
 }
 void writeBuffer(EDITOR* editor) {
 	FILE* fout = fopen(editor->bufferPath, "w");
 	fwrite(editor->buffer, strlen(editor->buffer), 1, fout);
 	fclose(fout);
-}
-
-int getCursorX(EDITOR* editor) {
-	int lineStartIndex = 0;
-	for(int i = editor->bufferIndex - 1; i >= 0; i--) {
-		if(editor->buffer[i] == '\n') {
-			lineStartIndex = i + 1;
-			break;
-		}
-	}
-	return editor->bufferIndex - lineStartIndex;
-}
-
-int getCursorY(EDITOR* editor) {
-	int y = 0;
-	for(int i = editor->bufferIndex - 1; i >= 0; i--) {
-		if(editor->buffer[i] == '\n') {
-			y++;
-		}
-	}
-
-	return y;
 }
 
 int getBufferLines(EDITOR* editor) {

@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "debug.h"
 
 #include <stdlib.h>
 #include <locale.h>
@@ -11,13 +12,15 @@ UI* initUi() {
 	cbreak();
 	noecho();
 
+	ui->titleBar = NULL;
+	ui->statusBar = NULL;
+	ui->linePrintBuffer = NULL;
+
 	updateWidth(ui);
 
-	ui->titleBar = malloc(ui->winWidth);
 	ui->titleBarLeftIndex = 0;
 	ui->titleBarRightIndex = ui->winWidth - 1;
 
-	ui->statusBar = malloc(ui->winWidth);
 	ui->statusBarLeftIndex = 0;
 	ui->statusBarRightIndex = ui->winWidth - 1;
 }
@@ -33,9 +36,10 @@ void updateWidth(UI* ui) {
 	if(width != ui->winWidth) {
 		ui->winWidth = width;
 
-		if(ui->titleBar != NULL && ui->statusBar != NULL) {
+		if(ui->titleBar != NULL) {
 			free(ui->titleBar);
 			free(ui->statusBar);
+			free(ui->linePrintBuffer);
 		}
 
 		ui->titleBar = (char*) malloc(ui->winWidth);
@@ -43,6 +47,9 @@ void updateWidth(UI* ui) {
 
 		ui->statusBar = (char*) malloc(ui->winWidth);
 		clearStatusBar(ui);
+
+		ui->linePrintBuffer = (char*) malloc(ui->winWidth);
+
 	}
 	if(height - 2 != ui->bufferEditorHeight) {
 		ui->bufferEditorHeight = height - 2;
@@ -126,45 +133,71 @@ void printStatusBar(UI* ui) {
 void printBuffer(UI* ui, EDITOR* editor) {
 	move(1, 0);
 
-	// allocating space every frame is VERY expensive
-	// figure how NOT to do that
-	char* viewBuffer = NULL;
+	static int viewTopLine = 0;
+	int y = 0;
+	int x = 0;
+
+	// get cursor pos
+	for(int i = 0; i < editor->bufferIndex; i++) {
+		x++;
+
+		if(editor->buffer[i] == '\n') {
+			y++;
+			x = 0;
+		}
+	}
+
+	// shift view if necessary
+	if(y < viewTopLine)
+		viewTopLine--;
+	else if(y - viewTopLine >= ui->bufferEditorHeight)
+		viewTopLine++;
+
 	char* sourceBuffer = editor->buffer;
-	int newlineCount = 0;
-	bool writing = false;
-	int start = 0;
 	int insertBufferOffset = 0;
+	int lineCount = 0;
+	int lineIndex = 0;
 
 	for(int i = 0; i < editor->bufferLen; i++) {
-		if(editor->mode == INSERT && sourceBuffer == editor->buffer && editor->buffer[i] == 0) {
-			insertBufferOffset = i;
+		// change buffer for insert mode
+		if(editor->mode == INSERT && sourceBuffer == editor->buffer && sourceBuffer[i] == 0) {
 			sourceBuffer = editor->insertBuffer;
+			insertBufferOffset = i;
 		}
 
-		if(!writing) {
-			if(newlineCount == editor->viewTopLine) {
-				start = i;
-				viewBuffer = (char*) malloc(editor->bufferLen - start);
-				writing = true;
+		if(lineCount >= viewTopLine) {
+			// add to print buffer
+			ui->linePrintBuffer[lineIndex] = sourceBuffer[i - insertBufferOffset];
+			lineIndex++;
+			ui->linePrintBuffer[lineIndex] = 0;
+
+			// print on newlines
+			if(sourceBuffer[i - insertBufferOffset] == '\n') {
+				ui->linePrintBuffer[lineIndex] = 0;
+				addstr(ui->linePrintBuffer);
+				lineIndex = 0;
+			} // ***line wrapping
+			else if(lineIndex >= ui->winWidth) {
+				ui->linePrintBuffer[lineIndex] = 0;
+				addstr(ui->linePrintBuffer);
+				lineIndex = 0;
+				
+				lineCount++;
 			}
 
-			if(sourceBuffer[i - insertBufferOffset] == '\n')
-				newlineCount++;
+			// printed max lines of text
+			if(lineCount - viewTopLine >= ui->bufferEditorHeight) {
+				break;
+			}
 		}
-		
-		if(writing) {
-			viewBuffer[i - start] = sourceBuffer[i - insertBufferOffset];
+
+		if(sourceBuffer[i - insertBufferOffset] == '\n') {
+			lineCount++;
 		}
 	}
 
-	if(viewBuffer != NULL) {
-		viewBuffer[editor->bufferLen - start] = 0;
-		addstr(viewBuffer);
-		free(viewBuffer);
-	}
+	if(lineIndex != 0 && lineCount - viewTopLine < ui->bufferEditorHeight)
+		addstr(ui->linePrintBuffer);
 
-	// Move the cursor to its proper position (**this may be unnecessary)
-	if(editor->bufferIndex != editor->bufferLen) {
-		move(getCursorY(editor) + 1, getCursorX(editor));
-	}
+	move(y - viewTopLine + 1, x);
 }

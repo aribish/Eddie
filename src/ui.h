@@ -7,6 +7,7 @@
 typedef struct {
 	WINDOW* win;
 	int winWidth;
+	int bufferEditorHeight;
 
 	char* titleBar;
 	int titleBarLeftIndex;
@@ -16,7 +17,8 @@ typedef struct {
 	int statusBarLeftIndex;
 	int statusBarRightIndex;
 
-	int bufferEditorHeight;
+	char* linePrintBuffer; // this is only really used in printBuffer.
+						   // its here so it can be updated in updateWidth()
 } UI;
 
 UI* initUi();
